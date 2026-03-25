@@ -122,10 +122,14 @@ if __name__ == "__main__":
 
                             corpo_relatorio += f"### 👤 Feedback #{id_cliente} | {sentimento_final}\n"
                             corpo_relatorio += f"**Assunto:** {assunto_final}\n"
+                            corpo_relatorio += f"**Confiança da Análise:** {res_analise.score_confianca:.2f}\n"
+                            corpo_relatorio += f"**Urgência de Resolução:** {'Sim' if res_analise.urgencia_resolucao else 'Não'}\n"
                             corpo_relatorio += f"**Pontos Chave:** {', '.join(res_analise.pontos_chave)}\n\n"
                             
                             if res_resposta:
-                                corpo_relatorio += f"**Resposta:** {res_resposta.texto_resposta}\n\n"
+                                corpo_relatorio += f"**Tom de Voz:** {res_resposta.tom_de_voz}\n"
+                                corpo_relatorio += f"**Resposta:** {res_resposta.texto_resposta}\n"
+                                corpo_relatorio += f"**Ação Interna:** {res_resposta.acao_interna}\n\n"
                             
                             corpo_relatorio += "---\n\n"
                             print(f"✅ Item #{id_cliente} validado com Pydantic!")
