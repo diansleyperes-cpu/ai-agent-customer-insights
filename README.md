@@ -1,48 +1,93 @@
 # Customer Insights Pipeline
 
-Este projeto implementa uma esteira automatizada de processamento de feedbacks de clientes utilizando multi-agentes (CrewAI) e modelos de linguagem Google Gemini. O objetivo é transformar dados não estruturados de arquivos CSV em relatórios executivos e bases de dados técnicas de forma automatizada.
+Este projeto processa feedbacks de clientes a partir de um arquivo CSV e gera dois artefatos de saída:
+
+- um dashboard em Markdown com métricas agregadas e detalhamento por item
+- uma base JSON com o histórico estruturado das análises
+
+O pipeline usa Google Gemini com saídas estruturadas via Pydantic, sem orquestração por CrewAI. O objetivo é transformar comentários livres em análises consistentes e respostas sugeridas para atendimento.
 
 ## Arquitetura do Sistema
 
-O sistema opera com dois agentes especializados que trabalham de forma sequencial:
+O fluxo atual executa duas etapas sequenciais para cada feedback:
 
-1. Analista de CX: Extrai o sentimento, categoria e pontos-chave do texto original, validando os dados via Pydantic.
-2. Gerente de Sucesso: Recebe a análise técnica e gera uma resposta empática personalizada, além de sugerir ações corretivas para processos internos.
+1. Análise técnica do comentário
+	- classifica sentimento
+	- estima score de confiança
+	- identifica assunto principal
+	- extrai pontos-chave
+	- marca urgência de resolução
 
-O fluxo garante que apenas dados que respeitem o schema definido em schema.py sejam processados, evitando inconsistências no dashboard final.
+2. Geração de resposta sugerida
+	- produz uma resposta empática ao cliente
+	- define tom de voz
+	- sugere uma ação interna corretiva
+
+As duas etapas usam schemas definidos em [schema.py](schema.py), garantindo estrutura e tipos antes de gravar os resultados finais.
 
 ## Stack Técnica
 
-- Orquestração: CrewAI
-- LLM: Google Gemini (gemini-flash-latest)
-- Validação: Pydantic (Strong Typing)
-- Configuração: Python 3.10+ e python-dotenv
+- LLM: Google Gemini `gemini-flash-latest`
+- Integração com modelo: `langchain-google-genai`
+- Validação estruturada: Pydantic v2
+- Configuração de ambiente: `python-dotenv`
+- Linguagem: Python
+
+## Estrutura do Projeto
+
+- [main.py](main.py): pipeline principal de processamento em lote
+- [schema.py](schema.py): modelos Pydantic para análise e resposta
+- [feedbacks.csv](feedbacks.csv): entrada com os comentários dos clientes
+- [relatorio_final.md](relatorio_final.md): dashboard consolidado em Markdown
+- [base_conhecimento.json](base_conhecimento.json): histórico técnico em JSON
 
 ## Como Executar
-1. Preparação do Ambiente:
-Crie e ative o ambiente virtual, em seguida instale as dependências:
+
+1. Preparação do ambiente
+
+```powershell
 python -m venv .venv
 .\.venv\Scripts\activate
 pip install -r requirements.txt
+```
 
-2. Configuração de Credenciais:
-Crie um arquivo .env na raiz do projeto (este arquivo é ignorado pelo Git por segurança):
+2. Configuração de credenciais
+
+Crie um arquivo `.env` na raiz do projeto:
+
+```env
 GEMINI_API_KEY=seu_token_aqui
+```
 
-3. Execução:
-O script processa o arquivo feedbacks.csv e gera os relatórios em tempo real:
-python main.py
+3. Execução do lote
 
-## Soluções de Resiliência Implementadas
+```powershell
+.\.venv\Scripts\python.exe .\main.py
+```
 
-- Exponential Backoff: Lógica de retry para contornar limites de cota (Erro 429) da API.
-- Data Validation: Uso de model_validate_json do Pydantic para garantir integridade entre o output da IA e o relatório final.
-- Rate Limiting: Delay programado de 60 segundos entre itens para operação em camadas gratuitas de API.
+O script lê [feedbacks.csv](feedbacks.csv), processa cada linha e atualiza os arquivos finais ao término do lote.
+
+## Resiliência Implementada
+
+- Retry com backoff progressivo para erros de cota, limite ou resposta `429`
+- Validação estruturada com Pydantic para análise e resposta
+- Delay de 60 segundos entre itens para reduzir risco de estouro de cota em camadas gratuitas
+- Tratamento isolado por item para evitar que uma falha interrompa todo o lote
+
+## Formato de Entrada
+
+O arquivo [feedbacks.csv](feedbacks.csv) deve conter pelo menos estas colunas:
+
+- `id`
+- `comentario`
 
 ## Entregáveis
 
-- relatorio_final.md: Dashboard executivo com métricas de sentimento e detalhamento por cliente.
-- base_conhecimento.json: Histórico técnico para integração com ferramentas de BI.
+- [relatorio_final.md](relatorio_final.md): resumo executivo com total processado, distribuição de sentimentos, categorias e detalhamento por feedback
+- [base_conhecimento.json](base_conhecimento.json): lista estruturada com `id`, `analise` e `timestamp`
 
----
-Nota: Este projeto utiliza .gitignore para proteger credenciais e evitar o versionamento de binários do ambiente virtual.
+## Observações
+
+- O pipeline depende da variável `GEMINI_API_KEY`; sem ela, a execução falha imediatamente.
+- O arquivo `.env` não deve ser versionado.
+- O arquivo `requirements.txt` contém dependências adicionais do ambiente, mas a execução principal depende diretamente de `python-dotenv`, `pydantic` e `langchain-google-genai`.
